@@ -3,11 +3,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from papijo_converter import LIBRARIES, PAPIJO_DESTINATION_WARNING, convert_files, find_h5p_files
+from papijo_converter import APP_VERSION, LIBRARIES, PAPIJO_DESTINATION_WARNING, convert_files, find_h5p_files
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert H5P packages to their Papi Jo equivalents.")
+    parser.add_argument("--version", action="version", version=f"H5P Convert to Papi Jo {APP_VERSION}")
     parser.add_argument("input", type=Path, help="Input .h5p file or folder containing .h5p files.")
     parser.add_argument("output", type=Path, help="Folder where converted .h5p files will be written.")
     parser.add_argument(

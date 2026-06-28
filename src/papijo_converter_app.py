@@ -6,13 +6,13 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from papijo_converter import LIBRARIES, PAPIJO_DESTINATION_WARNING, convert_file, find_h5p_files
+from papijo_converter import APP_VERSION, LIBRARIES, PAPIJO_DESTINATION_WARNING, convert_file, find_h5p_files
 
 
 class ConverterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("H5P Convert to Papi Jo")
+        self.title(f"H5P Convert to Papi Jo {APP_VERSION}")
         self.geometry("860x650")
         self.minsize(760, 560)
 
@@ -57,9 +57,15 @@ class ConverterApp(tk.Tk):
 
         libraries = ttk.LabelFrame(root, text="Libraries to convert", padding=12)
         libraries.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        library_actions = ttk.Frame(libraries)
+        library_actions.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        ttk.Button(library_actions, text="Check all", command=self._check_all_libraries).grid(
+            row=0, column=0, padx=(0, 8)
+        )
+        ttk.Button(library_actions, text="Check none", command=self._check_no_libraries).grid(row=0, column=1)
         for index, (machine, rule) in enumerate(LIBRARIES.items()):
             checkbox = ttk.Checkbutton(libraries, text=rule.display_label, variable=self.library_vars[machine])
-            checkbox.grid(row=index // 2, column=index % 2, sticky="w", padx=(0, 24), pady=2)
+            checkbox.grid(row=(index // 2) + 1, column=index % 2, sticky="w", padx=(0, 24), pady=2)
 
         output = ttk.LabelFrame(root, text="Conversion log", padding=12)
         output.grid(row=4, column=0, sticky="nsew")
@@ -84,14 +90,20 @@ class ConverterApp(tk.Tk):
         self.convert_button = ttk.Button(footer, text="Check and convert files", command=self._start_conversion)
         self.convert_button.grid(row=1, column=1, sticky="e", pady=(10, 0))
 
-        self._log(PAPIJO_DESTINATION_WARNING + "\n")
-
     def _choose_input(self) -> None:
         folder = filedialog.askdirectory(title="Select folder containing .h5p files")
         if folder:
             self.input_folder.set(folder)
             if not self.output_folder.get():
                 self.output_folder.set(str(Path(folder) / "papijo-converted"))
+
+    def _check_all_libraries(self) -> None:
+        for variable in self.library_vars.values():
+            variable.set(True)
+
+    def _check_no_libraries(self) -> None:
+        for variable in self.library_vars.values():
+            variable.set(False)
 
     def _choose_output(self) -> None:
         folder = filedialog.askdirectory(title="Select output folder")
@@ -125,7 +137,6 @@ class ConverterApp(tk.Tk):
         self.progress.configure(value=0, maximum=len(files))
         self.convert_button.configure(state=tk.DISABLED)
         self._clear_log()
-        self._log(PAPIJO_DESTINATION_WARNING + "\n\n")
         self._log(f"Found {len(files)} .h5p file(s). Starting conversion...\n")
 
         self.worker = threading.Thread(

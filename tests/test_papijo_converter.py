@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from papijo_converter import convert_file
+from papijo_converter import LIBRARIES, convert_file
 
 
 def _write_h5p(path: Path, manifest: dict, content: dict | None = None) -> None:
@@ -22,10 +22,18 @@ def _write_h5p(path: Path, manifest: dict, content: dict | None = None) -> None:
 
 
 class ConverterTests(unittest.TestCase):
+    def test_library_label_displays_target_version(self) -> None:
+        label = LIBRARIES["H5P.Dialogcards"].display_label
+
+        self.assertEqual(
+            label,
+            "Dialog Cards -> H5P.DialogcardsPapiJo 1.17",
+        )
+
     def test_converts_manifest_and_removes_bundled_libraries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            source = root / "drag.h5p"
+            source = root / "drag-14.h5p"
             output_dir = root / "out"
             manifest = {
                 "mainLibrary": "H5P.DragText",
@@ -38,6 +46,7 @@ class ConverterTests(unittest.TestCase):
             result = convert_file(source, output_dir, {"H5P.DragText"})
 
             self.assertTrue(result.converted)
+            self.assertEqual(result.output.name, "drag-DragTextPapiJo.h5p")
             with zipfile.ZipFile(result.output) as archive:
                 converted_manifest = json.loads(archive.read("h5p.json"))
                 self.assertEqual(converted_manifest["mainLibrary"], "H5P.DragTextPapiJo")
@@ -48,7 +57,7 @@ class ConverterTests(unittest.TestCase):
     def test_dialogcards_wraps_legacy_media(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            source = root / "cards.h5p"
+            source = root / "fish-id-herbivores-9.h5p"
             output_dir = root / "out"
             manifest = {
                 "mainLibrary": "H5P.Dialogcards",
@@ -70,6 +79,7 @@ class ConverterTests(unittest.TestCase):
             result = convert_file(source, output_dir, {"H5P.Dialogcards"})
 
             self.assertTrue(result.converted)
+            self.assertEqual(result.output.name, "fish-id-herbivores-DialogCardsPapiJo.h5p")
             with zipfile.ZipFile(result.output) as archive:
                 converted_content = json.loads(archive.read("content/content.json"))
                 dialog = converted_content["dialogs"][0]
@@ -81,7 +91,7 @@ class ConverterTests(unittest.TestCase):
     def test_question_set_rewrites_nested_libraries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            source = root / "question-set.h5p"
+            source = root / "dynamics-quiz-14.h5p"
             output_dir = root / "out"
             manifest = {
                 "mainLibrary": "H5P.QuestionSet",
@@ -95,6 +105,7 @@ class ConverterTests(unittest.TestCase):
             result = convert_file(source, output_dir, {"H5P.QuestionSet"})
 
             self.assertTrue(result.converted)
+            self.assertEqual(result.output.name, "dynamics-quiz-QuestionSetPapiJo.h5p")
             with zipfile.ZipFile(result.output) as archive:
                 converted_content = json.loads(archive.read("content/content.json"))
                 self.assertEqual(converted_content["questions"][0]["library"], "H5P.DragTextPapiJo 1.1")

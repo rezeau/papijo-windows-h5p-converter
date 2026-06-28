@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import zipfile
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Iterable
 
+
+APP_VERSION = "0.1.1"
 
 PAPIJO_DESTINATION_WARNING = (
     "Converted files require the corresponding Papi Jo H5P libraries to be "
@@ -25,33 +28,70 @@ class LibraryRule:
     target: str
     target_major: int
     target_minor: int
+    filename_label: str
 
     @property
     def display_label(self) -> str:
-        return f"{self.label} -> {self.target} {self.target_major}.{self.target_minor}"
+        target = f"{self.target} {self.target_major}.{self.target_minor}"
+        return f"{self.label} -> {target}"
 
 
 LIBRARIES: dict[str, LibraryRule] = {
     "H5P.AdvancedBlanks": LibraryRule(
-        "H5P.AdvancedBlanks", "Complex fill the blanks", "H5P.AdvancedBlanksPapiJo", 1, 4
+        machine_name="H5P.AdvancedBlanks",
+        label="Complex fill the blanks",
+        target="H5P.AdvancedBlanksPapiJo",
+        target_major=1,
+        target_minor=4,
+        filename_label="AdvancedBlanksPapiJo",
     ),
     "H5P.Dialogcards": LibraryRule(
-        "H5P.Dialogcards", "Dialog Cards", "H5P.DialogcardsPapiJo", 1, 17
+        machine_name="H5P.Dialogcards",
+        label="Dialog Cards",
+        target="H5P.DialogcardsPapiJo",
+        target_major=1,
+        target_minor=17,
+        filename_label="DialogCardsPapiJo",
     ),
     "H5P.DragQuestion": LibraryRule(
-        "H5P.DragQuestion", "Drag and Drop", "H5P.DragQuestionPapiJo", 1, 14
+        machine_name="H5P.DragQuestion",
+        label="Drag and Drop",
+        target="H5P.DragQuestionPapiJo",
+        target_major=1,
+        target_minor=14,
+        filename_label="DragQuestionPapiJo",
     ),
     "H5P.DragText": LibraryRule(
-        "H5P.DragText", "Drag the Words", "H5P.DragTextPapiJo", 1, 1
+        machine_name="H5P.DragText",
+        label="Drag the Words",
+        target="H5P.DragTextPapiJo",
+        target_major=1,
+        target_minor=1,
+        filename_label="DragTextPapiJo",
     ),
     "H5P.MarkTheWords": LibraryRule(
-        "H5P.MarkTheWords", "Mark the Words", "H5P.MarkTheWordsPapiJo", 1, 1
+        machine_name="H5P.MarkTheWords",
+        label="Mark the Words",
+        target="H5P.MarkTheWordsPapiJo",
+        target_major=1,
+        target_minor=1,
+        filename_label="MarkTheWordsPapiJo",
     ),
     "H5P.MultiMediaChoice": LibraryRule(
-        "H5P.MultiMediaChoice", "Multimedia Choice", "H5P.MultiMediaChoicePapiJo", 0, 4
+        machine_name="H5P.MultiMediaChoice",
+        label="Multimedia Choice",
+        target="H5P.MultiMediaChoicePapiJo",
+        target_major=0,
+        target_minor=4,
+        filename_label="MultiMediaChoicePapiJo",
     ),
     "H5P.QuestionSet": LibraryRule(
-        "H5P.QuestionSet", "Question Set", "H5P.QuestionSetPapiJo", 1, 21
+        machine_name="H5P.QuestionSet",
+        label="Question Set",
+        target="H5P.QuestionSetPapiJo",
+        target_major=1,
+        target_minor=21,
+        filename_label="QuestionSetPapiJo",
     ),
 }
 
@@ -132,7 +172,7 @@ def convert_file(source: Path, output_dir: Path, selected_libraries: set[str]) -
                 elif machine == "H5P.Dialogcards":
                     _convert_dialog_cards_content(content)
 
-            output = _unique_output_path(output_dir, source.stem + "-papijo.h5p")
+            output = _unique_output_path(output_dir, _converted_filename(source, rule))
             _write_converted_archive(archive, output, manifest, content)
             return ConversionResult(
                 source=source,
@@ -253,6 +293,13 @@ def _is_archive_library_file(name: str, library_dirs: set[str]) -> bool:
 
 def _json_bytes(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, indent=2, separators=(",", ": ")).encode("utf-8")
+
+
+def _converted_filename(source: Path, rule: LibraryRule) -> str:
+    base = re.sub(r"-\d+$", "", source.stem)
+    if not base:
+        base = source.stem
+    return f"{base}-{rule.filename_label}.h5p"
 
 
 def _unique_output_path(output_dir: Path, filename: str) -> Path:

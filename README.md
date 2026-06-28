@@ -11,13 +11,13 @@ libraries into Moodle, WordPress, H5P.com, Lumi, or any other H5P platform.
 
 ## Supported Source Libraries
 
-- Complex fill the blanks
-- Dialog Cards
-- Drag and Drop
-- Drag the Words
-- Mark the Words
-- Multimedia Choice
-- Question Set
+- Complex fill the blanks -> `H5P.AdvancedBlanksPapiJo 1.4`
+- Dialog Cards -> `H5P.DialogcardsPapiJo 1.17`
+- Drag and Drop -> `H5P.DragQuestionPapiJo 1.14`
+- Drag the Words -> `H5P.DragTextPapiJo 1.1`
+- Mark the Words -> `H5P.MarkTheWordsPapiJo 1.1`
+- Multimedia Choice -> `H5P.MultiMediaChoicePapiJo 0.4`
+- Question Set -> `H5P.QuestionSetPapiJo 1.21`
 
 Question Set conversions also update supported nested H5P library references.
 Dialog Cards conversions move legacy image and audio fields into the Papi Jo
@@ -59,6 +59,25 @@ To skip tests during a rebuild:
 .\build-exe.ps1 -SkipTests
 ```
 
+## Author Release Helper
+
+Use `release.ps1` to update the app version, update Papi Jo target dependency
+versions, rebuild the `.exe`, and create a release ZIP in `releases\`.
+
+```powershell
+.\release.ps1 -Version 0.1.1
+```
+
+Update Papi Jo target dependency versions written into converted packages:
+
+```powershell
+.\release.ps1 -Version 0.1.2 -LibraryVersion 'H5P.Dialogcards=1.18'
+```
+
+You may repeat `-LibraryVersion` for several libraries. The format is
+`H5P.MachineName=major.minor`, using the original H5P machine name on the left
+and the Papi Jo target major/minor version on the right.
+
 ## Test
 
 ```powershell
@@ -68,4 +87,7 @@ python -m unittest discover -s tests
 ## Safety
 
 Source `.h5p` files are never modified. Converted files are written to the
-selected output folder using a `-papijo.h5p` suffix.
+selected output folder. If a source filename ends with a dash and number, that
+number is removed and the converted Papi Jo library name is appended. For
+example, `dynamics-quiz-14.h5p` becomes
+`dynamics-quiz-QuestionSetPapiJo.h5p`.
