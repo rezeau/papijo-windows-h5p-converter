@@ -12,7 +12,7 @@ from papijo_converter import APP_VERSION, LIBRARIES, PAPIJO_DESTINATION_WARNING,
 class ConverterApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title(f"H5P Convert to Papi Jo {APP_VERSION}")
+        self.title(f"Papi Jo Windows H5P Converter {APP_VERSION}")
         self.geometry("860x650")
         self.minsize(760, 560)
 

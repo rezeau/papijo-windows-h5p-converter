@@ -1,4 +1,4 @@
-# H5P Convert to Papi Jo - Windows Standalone
+# Papi Jo Windows H5P Converter
 
 Standalone Windows converter for exported `.h5p` packages. It converts supported
 official H5P content packages to their Papi Jo library equivalents without

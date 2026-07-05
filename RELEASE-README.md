@@ -8,7 +8,7 @@ The script can:
 - update `APP_VERSION` in `src/papijo_converter.py`
 - update Papi Jo target major/minor versions in the converter rules
 - run the test suite
-- rebuild `dist\H5P-Convert-to-Papi-Jo.exe`
+- rebuild `dist\Papijo-Windows-H5p-Converter.exe`
 - create a release ZIP in `releases\`
 
 ## Basic Release
@@ -16,7 +16,7 @@ The script can:
 From PowerShell:
 
 ```powershell
-Set-Location "C:\Users\josep\OneDrive\Documents\h5p-convert-to-papijo-for windows standalone"
+Set-Location "C:\Users\josep\OneDrive\Documents\CODEX\papijo-windows-h5p-converter"
 .\release.ps1 -Version 0.1.2
 ```
 
@@ -61,7 +61,7 @@ means the script would perform that release if `-WhatIf` were removed.
 After a real run, the rebuilt executable is:
 
 ```text
-dist\H5P-Convert-to-Papi-Jo.exe
+dist\Papijo-Windows-H5p-Converter.exe
 ```
 
 The release ZIP is created in:

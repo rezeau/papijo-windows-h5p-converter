@@ -15,9 +15,9 @@ python -m PyInstaller `
     --onefile `
     --windowed `
     --clean `
-    --name H5P-Convert-to-Papi-Jo `
+    --name Papijo-Windows-H5p-Converter `
     .\src\papijo_converter_app.py
 
 Write-Host ''
 Write-Host 'Built executable:'
-Write-Host (Join-Path $ProjectRoot 'dist\H5P-Convert-to-Papi-Jo.exe')
+Write-Host (Join-Path $ProjectRoot 'dist\Papijo-Windows-H5p-Converter.exe')

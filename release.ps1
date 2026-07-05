@@ -28,8 +28,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $converterFile = Join-Path $PSScriptRoot 'src\papijo_converter.py'
-$executable = Join-Path $PSScriptRoot 'dist\H5P-Convert-to-Papi-Jo.exe'
-$releaseName = "H5P-Convert-to-Papi-Jo-$Version"
+$executable = Join-Path $PSScriptRoot 'dist\Papijo-Windows-H5p-Converter.exe'
+$releaseName = "Papijo-Windows-H5p-Converter-$Version"
 
 if (-not (Test-Path -LiteralPath $converterFile -PathType Leaf)) {
     throw "Converter file not found: $converterFile"
@@ -123,7 +123,7 @@ if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $archive = Join-Path $OutputDirectory "$releaseName.zip"
-$stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("h5p-convert-to-papijo-windows-release-" + [guid]::NewGuid().ToString('N'))
+$stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("papijo-windows-h5p-converter-release-" + [guid]::NewGuid().ToString('N'))
 $stagingDirectory = Join-Path $stagingRoot $releaseName
 
 try {
