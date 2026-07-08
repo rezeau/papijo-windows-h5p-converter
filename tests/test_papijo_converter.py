@@ -54,6 +54,52 @@ class ConverterTests(unittest.TestCase):
                 self.assertNotIn("H5P.DragText-1.10/library.json", archive.namelist())
                 self.assertEqual(archive.read("content/example.txt"), b"keep me")
 
+    def test_converts_timeline_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "history-tour-3.h5p"
+            output_dir = root / "out"
+            manifest = {
+                "mainLibrary": "H5P.Timeline",
+                "preloadedDependencies": [
+                    {"machineName": "H5P.Timeline", "majorVersion": 1, "minorVersion": 1},
+                    {"machineName": "TimelineJS", "majorVersion": 1, "minorVersion": 1},
+                ],
+            }
+            content = {
+                "timeline": {
+                    "headline": "History tour",
+                    "text": "<div>Intro</div>",
+                    "language": "fr",
+                    "date": [
+                        {
+                            "headline": "First stop",
+                            "text": "<div>Arrived</div>",
+                            "startDate": "2026,7,8",
+                            "asset": {"media": "https://example.com/image.jpg", "caption": "A caption"},
+                        }
+                    ],
+                }
+            }
+            _write_h5p(source, manifest, content)
+
+            result = convert_file(source, output_dir, {"H5P.Timeline"})
+
+            self.assertTrue(result.converted)
+            self.assertEqual(result.output.name, "history-tour-NDLATimelinePapiJo.h5p")
+            with zipfile.ZipFile(result.output) as archive:
+                converted_manifest = json.loads(archive.read("h5p.json"))
+                converted_content = json.loads(archive.read("content/content.json"))
+                self.assertEqual(converted_manifest["mainLibrary"], "H5P.NDLATimelinePapiJo")
+                self.assertEqual(
+                    converted_manifest["preloadedDependencies"][1],
+                    {"machineName": "H5P.NDLATimelinePapiJo", "majorVersion": 0, "minorVersion": 2},
+                )
+                self.assertEqual(converted_content["language"], "fr")
+                self.assertEqual(converted_content["titleSlide"]["title"], "History tour")
+                self.assertEqual(converted_content["timelineItems"][0]["title"], "First stop")
+                self.assertEqual(converted_content["timelineItems"][0]["startDate"], "2026-7-8")
+
     def test_dialogcards_wraps_legacy_media(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -99,7 +145,11 @@ class ConverterTests(unittest.TestCase):
                     {"machineName": "H5P.QuestionSet", "majorVersion": 1, "minorVersion": 21}
                 ],
             }
-            content = {"questions": [{"library": "H5P.DragText 1.10", "params": {}}]}
+            content = {
+                "questions": [
+                    {"library": "H5P.DragText 1.10", "params": {}},
+                ]
+            }
             _write_h5p(source, manifest, content)
 
             result = convert_file(source, output_dir, {"H5P.QuestionSet"})
