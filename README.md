@@ -14,7 +14,7 @@ libraries into Moodle, WordPress, H5P.com, Lumi, or any other H5P platform.
 - Complex fill the blanks -> `H5P.AdvancedBlanksPapiJo 1.4`
 - Dialog Cards -> `H5P.DialogcardsPapiJo 1.17`
 - Drag and Drop -> `H5P.DragQuestionPapiJo 1.14`
-- Drag the Words -> `H5P.DragTextPapiJo 1.1`
+- Drag the Words -> `H5P.DragTextPapiJo 1.3`
 - Mark the Words -> `H5P.MarkTheWordsPapiJo 1.1`
 - Multimedia Choice -> `H5P.MultiMediaChoicePapiJo 0.4`
 - Question Set -> `H5P.QuestionSetPapiJo 1.21`

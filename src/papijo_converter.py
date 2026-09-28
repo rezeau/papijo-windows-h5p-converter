@@ -79,7 +79,7 @@ LIBRARIES: dict[str, LibraryRule] = {
         label="Drag the Words",
         target="H5P.DragTextPapiJo",
         target_major=1,
-        target_minor=1,
+        target_minor=3,
         filename_label="DragTextPapiJo",
     ),
     "H5P.MarkTheWords": LibraryRule(
@@ -191,6 +191,8 @@ def convert_file(source: Path, output_dir: Path, selected_libraries: set[str]) -
                 content = _read_json(archive, "content/content.json")
                 if machine == "H5P.QuestionSet":
                     _convert_question_set_content(content)
+                elif machine == "H5P.DragText":
+                    _convert_drag_text_content(content)
                 elif machine == "H5P.Dialogcards":
                     _convert_dialog_cards_content(content)
                 elif machine == "H5P.Timeline":
@@ -241,16 +243,42 @@ def _convert_question_set_content(content: Any) -> None:
 
 def _replace_library_references(value: Any, mapping: dict[str, str]) -> None:
     if isinstance(value, dict):
+        library = value.get("library")
+        machine = library.strip().split(" ", 1)[0] if isinstance(library, str) else None
+        if machine in mapping:
+            value["library"] = mapping[machine]
+            if machine == "H5P.DragText":
+                _convert_drag_text_content(value.get("params"))
+
         for key, child in value.items():
-            if key == "library" and isinstance(child, str):
-                machine = child.strip().split(" ", 1)[0]
-                if machine in mapping:
-                    value[key] = mapping[machine]
-                    continue
+            if key == "library":
+                continue
             _replace_library_references(child, mapping)
     elif isinstance(value, list):
         for child in value:
             _replace_library_references(child, mapping)
+
+
+def _convert_drag_text_content(content: Any) -> None:
+    if not isinstance(content, dict):
+        return
+
+    text_field = content.get("textField")
+    if isinstance(text_field, str):
+        content["textField"] = _convert_drag_text_tips(text_field)
+
+
+def _convert_drag_text_tips(text: str) -> str:
+    def convert_expression(match: re.Match[str]) -> str:
+        expression = match.group(0)
+        feedback = re.search(r"\\[+-]", expression)
+        tip_region = expression[: feedback.start()] if feedback else expression
+        delimiter = re.search(r":+", tip_region)
+        if delimiter is None or delimiter.group(0) != ":":
+            return expression
+        return expression[: delimiter.start()] + "::" + expression[delimiter.end() :]
+
+    return re.sub(r"\*[^*]*\*", convert_expression, text)
 
 
 def _convert_dialog_cards_content(content: Any) -> None:

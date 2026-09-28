@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from papijo_converter import LIBRARIES, convert_file
+from papijo_converter import LIBRARIES, _convert_drag_text_tips, convert_file
 
 
 def _write_h5p(path: Path, manifest: dict, content: dict | None = None) -> None:
@@ -22,6 +22,34 @@ def _write_h5p(path: Path, manifest: dict, content: dict | None = None) -> None:
 
 
 class ConverterTests(unittest.TestCase):
+    def test_drag_text_tip_conversion_leaves_colons_outside_expressions_unchanged(self) -> None:
+        self.assertEqual(
+            _convert_drag_text_tips("Instruction: choose *Paris:Capital of France*."),
+            "Instruction: choose *Paris::Capital of France*.",
+        )
+
+    def test_drag_text_tip_conversion_handles_multiple_expressions(self) -> None:
+        self.assertEqual(
+            _convert_drag_text_tips("*Paris:France* and *Rome:Italy*"),
+            "*Paris::France* and *Rome::Italy*",
+        )
+
+    def test_drag_text_tip_conversion_does_not_double_convert(self) -> None:
+        self.assertEqual(
+            _convert_drag_text_tips("*Paris::Capital of France*"),
+            "*Paris::Capital of France*",
+        )
+
+    def test_drag_text_tip_conversion_preserves_feedback_syntax(self) -> None:
+        self.assertEqual(
+            _convert_drag_text_tips(r"*Madrid:Spain\+Correct: yes\-Incorrect: no*"),
+            r"*Madrid::Spain\+Correct: yes\-Incorrect: no*",
+        )
+        self.assertEqual(
+            _convert_drag_text_tips(r"*Lisbon\+Correct: yes\-Incorrect: no*"),
+            r"*Lisbon\+Correct: yes\-Incorrect: no*",
+        )
+
     def test_library_label_displays_target_version(self) -> None:
         label = LIBRARIES["H5P.Dialogcards"].display_label
 
@@ -30,7 +58,7 @@ class ConverterTests(unittest.TestCase):
             "Dialog Cards -> H5P.DialogcardsPapiJo 1.17",
         )
 
-    def test_converts_manifest_and_removes_bundled_libraries(self) -> None:
+    def test_converts_drag_text_manifest_content_and_removes_bundled_libraries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             source = root / "drag-14.h5p"
@@ -41,7 +69,15 @@ class ConverterTests(unittest.TestCase):
                     {"machineName": "H5P.DragText", "majorVersion": 1, "minorVersion": 10}
                 ],
             }
-            _write_h5p(source, manifest)
+            content = {
+                "textField": (
+                    "Instruction: choose *Paris:Capital of France* and *Rome:Italy*. "
+                    "Already converted: *Berlin::Capital of Germany*. "
+                    r"Feedback: *Madrid:Capital of Spain\+Correct: yes\-Incorrect: no*. "
+                    r"No tip: *Lisbon\+Correct: yes\-Incorrect: no*."
+                )
+            }
+            _write_h5p(source, manifest, content)
 
             result = convert_file(source, output_dir, {"H5P.DragText"})
 
@@ -50,7 +86,17 @@ class ConverterTests(unittest.TestCase):
             with zipfile.ZipFile(result.output) as archive:
                 converted_manifest = json.loads(archive.read("h5p.json"))
                 self.assertEqual(converted_manifest["mainLibrary"], "H5P.DragTextPapiJo")
-                self.assertEqual(converted_manifest["preloadedDependencies"][0]["minorVersion"], 1)
+                self.assertEqual(converted_manifest["preloadedDependencies"][0]["minorVersion"], 3)
+                converted_content = json.loads(archive.read("content/content.json"))
+                self.assertEqual(
+                    converted_content["textField"],
+                    (
+                        "Instruction: choose *Paris::Capital of France* and *Rome::Italy*. "
+                        "Already converted: *Berlin::Capital of Germany*. "
+                        r"Feedback: *Madrid::Capital of Spain\+Correct: yes\-Incorrect: no*. "
+                        r"No tip: *Lisbon\+Correct: yes\-Incorrect: no*."
+                    ),
+                )
                 self.assertNotIn("H5P.DragText-1.10/library.json", archive.namelist())
                 self.assertEqual(archive.read("content/example.txt"), b"keep me")
 
@@ -147,7 +193,10 @@ class ConverterTests(unittest.TestCase):
             }
             content = {
                 "questions": [
-                    {"library": "H5P.DragText 1.10", "params": {}},
+                    {
+                        "library": "H5P.DragText 1.10",
+                        "params": {"textField": "Instruction: choose *Paris:France*."},
+                    },
                 ]
             }
             _write_h5p(source, manifest, content)
@@ -158,7 +207,12 @@ class ConverterTests(unittest.TestCase):
             self.assertEqual(result.output.name, "dynamics-quiz-QuestionSetPapiJo.h5p")
             with zipfile.ZipFile(result.output) as archive:
                 converted_content = json.loads(archive.read("content/content.json"))
-                self.assertEqual(converted_content["questions"][0]["library"], "H5P.DragTextPapiJo 1.1")
+                question = converted_content["questions"][0]
+                self.assertEqual(question["library"], "H5P.DragTextPapiJo 1.3")
+                self.assertEqual(
+                    question["params"]["textField"],
+                    "Instruction: choose *Paris::France*.",
+                )
 
 
 if __name__ == "__main__":
