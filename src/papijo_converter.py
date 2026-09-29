@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Iterable
 
 
-APP_VERSION = "0.1.3"
+APP_VERSION = "0.1.4"
 
 PAPIJO_DESTINATION_WARNING = (
     "Converted files require the corresponding Papi Jo H5P libraries to be "
