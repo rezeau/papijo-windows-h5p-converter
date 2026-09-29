@@ -15,18 +15,13 @@ libraries into Moodle, WordPress, H5P.com, Lumi, or any other H5P platform.
 - Dialog Cards -> `H5P.DialogcardsPapiJo 1.17`
 - Drag and Drop -> `H5P.DragQuestionPapiJo 1.14`
 - Drag the Words -> `H5P.DragTextPapiJo 1.3`
-- Mark the Words -> `H5P.MarkTheWordsPapiJo 1.1`
+- Mark the Words -> `H5P.MarkTheWordsPapiJo 1.2`
 - Multimedia Choice -> `H5P.MultiMediaChoicePapiJo 0.4`
-- Question Set -> `H5P.QuestionSetPapiJo 1.21`
-- Timeline -> `H5P.NDLATimelinePapiJo 0.2`
+- Question Set -> `H5P.QuestionSetPapiJo 1.23`
 
 Question Set conversions also update supported nested H5P library references.
 Dialog Cards conversions move legacy image and audio fields into the Papi Jo
 media structure.
-Timeline conversions replace the `H5P.Timeline` main library and `TimelineJS`
-dependency with `H5P.NDLATimelinePapiJo`, and convert `content/content.json`
-using the conversion logic from
-`tools\convert-timeline-to-papijo.php`.
 
 ## Run From Source
 

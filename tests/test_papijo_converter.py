@@ -100,7 +100,91 @@ class ConverterTests(unittest.TestCase):
                 self.assertNotIn("H5P.DragText-1.10/library.json", archive.namelist())
                 self.assertEqual(archive.read("content/example.txt"), b"keep me")
 
-    def test_converts_timeline_manifest(self) -> None:
+    def test_converts_mark_the_words_legacy_score_points_behaviour(self) -> None:
+        cases = [
+            (
+                "enabled",
+                {"showScorePoints": True, "enableRetry": False},
+                {"enableRetry": False, "displayTicksMode": "ticksAndScorepoints"},
+                "Send answer",
+            ),
+            (
+                "disabled",
+                {"showScorePoints": False},
+                {"displayTicksMode": "ticksOnly"},
+                None,
+            ),
+            (
+                "missing",
+                {"enableRetry": True},
+                {"enableRetry": True},
+                None,
+            ),
+            (
+                "existing-target",
+                {"showScorePoints": False, "displayTicksMode": "ticksAbove"},
+                {"displayTicksMode": "ticksAbove"},
+                None,
+            ),
+            (
+                "non-object-behaviour",
+                "leave unchanged",
+                "leave unchanged",
+                None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output_dir = root / "out"
+            for name, behaviour, expected_behaviour, submit_text in cases:
+                with self.subTest(name=name):
+                    source = root / f"mark-{name}.h5p"
+                    manifest = {
+                        "mainLibrary": "H5P.MarkTheWords",
+                        "preloadedDependencies": [
+                            {
+                                "machineName": "H5P.MarkTheWords",
+                                "majorVersion": 1,
+                                "minorVersion": 11,
+                            }
+                        ],
+                    }
+                    content = {
+                        "textField": "Mark the *correct* word.",
+                        "behaviour": behaviour,
+                        "unrelated": {"keep": "unchanged"},
+                    }
+                    if submit_text is not None:
+                        content["submitAnswerButton"] = submit_text
+                    _write_h5p(source, manifest, content)
+
+                    result = convert_file(source, output_dir, {"H5P.MarkTheWords"})
+
+                    self.assertTrue(result.converted)
+                    with zipfile.ZipFile(result.output) as archive:
+                        converted_manifest = json.loads(archive.read("h5p.json"))
+                        converted_content = json.loads(archive.read("content/content.json"))
+
+                    self.assertEqual(
+                        converted_manifest["preloadedDependencies"][0],
+                        {
+                            "machineName": "H5P.MarkTheWordsPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 2,
+                        },
+                    )
+                    self.assertEqual(converted_content["behaviour"], expected_behaviour)
+                    self.assertNotIn("showScorePoints", converted_content["behaviour"])
+                    self.assertEqual(converted_content["unrelated"], {"keep": "unchanged"})
+                    if submit_text is None:
+                        self.assertNotIn("submitAnswerButton", converted_content)
+                    else:
+                        self.assertEqual(converted_content["submitAnswerButton"], submit_text)
+
+    def test_timeline_is_not_supported(self) -> None:
+        self.assertNotIn("H5P.Timeline", LIBRARIES)
+
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             source = root / "history-tour-3.h5p"
@@ -112,39 +196,15 @@ class ConverterTests(unittest.TestCase):
                     {"machineName": "TimelineJS", "majorVersion": 1, "minorVersion": 1},
                 ],
             }
-            content = {
-                "timeline": {
-                    "headline": "History tour",
-                    "text": "<div>Intro</div>",
-                    "language": "fr",
-                    "date": [
-                        {
-                            "headline": "First stop",
-                            "text": "<div>Arrived</div>",
-                            "startDate": "2026,7,8",
-                            "asset": {"media": "https://example.com/image.jpg", "caption": "A caption"},
-                        }
-                    ],
-                }
-            }
-            _write_h5p(source, manifest, content)
+            _write_h5p(source, manifest, {"timeline": {}})
 
-            result = convert_file(source, output_dir, {"H5P.Timeline"})
+            result = convert_file(source, output_dir, set(LIBRARIES))
 
-            self.assertTrue(result.converted)
-            self.assertEqual(result.output.name, "history-tour-NDLATimelinePapiJo.h5p")
-            with zipfile.ZipFile(result.output) as archive:
-                converted_manifest = json.loads(archive.read("h5p.json"))
-                converted_content = json.loads(archive.read("content/content.json"))
-                self.assertEqual(converted_manifest["mainLibrary"], "H5P.NDLATimelinePapiJo")
-                self.assertEqual(
-                    converted_manifest["preloadedDependencies"][1],
-                    {"machineName": "H5P.NDLATimelinePapiJo", "majorVersion": 0, "minorVersion": 2},
-                )
-                self.assertEqual(converted_content["language"], "fr")
-                self.assertEqual(converted_content["titleSlide"]["title"], "History tour")
-                self.assertEqual(converted_content["timelineItems"][0]["title"], "First stop")
-                self.assertEqual(converted_content["timelineItems"][0]["startDate"], "2026-7-8")
+            self.assertFalse(result.converted)
+            self.assertIsNone(result.output)
+            self.assertEqual(result.library, "H5P.Timeline")
+            self.assertEqual(result.message, "H5P.Timeline is not supported for conversion.")
+            self.assertEqual(list(output_dir.iterdir()), [])
 
     def test_dialogcards_wraps_legacy_media(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -180,7 +240,7 @@ class ConverterTests(unittest.TestCase):
                 self.assertEqual(dialog["imageMedia"]["imageAltText"], "cat")
                 self.assertEqual(dialog["audioMedia"]["audio"][0]["path"], "audios/cat.mp3")
 
-    def test_question_set_rewrites_nested_libraries(self) -> None:
+    def test_question_set_rewrites_nested_content_and_used_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             source = root / "dynamics-quiz-14.h5p"
@@ -188,15 +248,41 @@ class ConverterTests(unittest.TestCase):
             manifest = {
                 "mainLibrary": "H5P.QuestionSet",
                 "preloadedDependencies": [
-                    {"machineName": "H5P.QuestionSet", "majorVersion": 1, "minorVersion": 21}
+                    {"machineName": "H5P.QuestionSet", "majorVersion": 1, "minorVersion": 21},
+                    {"machineName": "H5P.MarkTheWords", "majorVersion": 1, "minorVersion": 11},
+                    {"machineName": "H5P.TrueFalse", "majorVersion": 1, "minorVersion": 8},
+                    {
+                        "machineName": "H5P.MultiMediaChoice",
+                        "majorVersion": 0,
+                        "minorVersion": 3,
+                    },
+                    {"machineName": "H5P.Dialogcards", "majorVersion": 1, "minorVersion": 9},
+                ],
+                "dynamicDependencies": [
+                    {"machineName": "H5P.DragText", "majorVersion": 1, "minorVersion": 10},
+                    {"machineName": "H5P.DragQuestion", "majorVersion": 1, "minorVersion": 15},
+                ],
+                "editorDependencies": [
+                    {"machineName": "H5P.AdvancedBlanks", "majorVersion": 1, "minorVersion": 0},
                 ],
             }
             content = {
                 "questions": [
                     {
+                        "library": "H5P.MarkTheWords 1.11",
+                        "params": {
+                            "textField": "Mark the *answer*.",
+                            "behaviour": {"showScorePoints": False},
+                        },
+                    },
+                    {
                         "library": "H5P.DragText 1.10",
                         "params": {"textField": "Instruction: choose *Paris:France*."},
                     },
+                    {"library": "H5P.DragQuestion 1.15", "params": {}},
+                    {"library": "H5P.AdvancedBlanks 1.0", "params": {}},
+                    {"library": "H5P.TrueFalse 1.8", "params": {}},
+                    {"library": "H5P.Dialogcards 1.9", "params": {}},
                 ]
             }
             _write_h5p(source, manifest, content)
@@ -206,13 +292,98 @@ class ConverterTests(unittest.TestCase):
             self.assertTrue(result.converted)
             self.assertEqual(result.output.name, "dynamics-quiz-QuestionSetPapiJo.h5p")
             with zipfile.ZipFile(result.output) as archive:
+                converted_manifest = json.loads(archive.read("h5p.json"))
                 converted_content = json.loads(archive.read("content/content.json"))
-                question = converted_content["questions"][0]
-                self.assertEqual(question["library"], "H5P.DragTextPapiJo 1.3")
+
                 self.assertEqual(
-                    question["params"]["textField"],
+                    converted_manifest["preloadedDependencies"],
+                    [
+                        {
+                            "machineName": "H5P.QuestionSetPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 23,
+                        },
+                        {
+                            "machineName": "H5P.MarkTheWordsPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 2,
+                        },
+                        {"machineName": "H5P.TrueFalse", "majorVersion": 1, "minorVersion": 8},
+                        {
+                            "machineName": "H5P.MultiMediaChoice",
+                            "majorVersion": 0,
+                            "minorVersion": 3,
+                        },
+                        {"machineName": "H5P.Dialogcards", "majorVersion": 1, "minorVersion": 9},
+                    ],
+                )
+                self.assertEqual(
+                    converted_manifest["dynamicDependencies"],
+                    [
+                        {
+                            "machineName": "H5P.DragTextPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 3,
+                        },
+                        {
+                            "machineName": "H5P.DragQuestionPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 14,
+                        },
+                    ],
+                )
+                self.assertEqual(
+                    converted_manifest["editorDependencies"],
+                    [
+                        {
+                            "machineName": "H5P.AdvancedBlanksPapiJo",
+                            "majorVersion": 1,
+                            "minorVersion": 4,
+                        }
+                    ],
+                )
+
+                (
+                    mark_the_words,
+                    drag_text,
+                    drag_question,
+                    advanced_blanks,
+                    true_false,
+                    dialog_cards,
+                ) = converted_content["questions"]
+                self.assertEqual(mark_the_words["library"], "H5P.MarkTheWordsPapiJo 1.2")
+                self.assertEqual(
+                    mark_the_words["params"]["behaviour"],
+                    {"displayTicksMode": "ticksOnly"},
+                )
+                self.assertEqual(drag_text["library"], "H5P.DragTextPapiJo 1.3")
+                self.assertEqual(
+                    drag_text["params"]["textField"],
                     "Instruction: choose *Paris::France*.",
                 )
+                self.assertEqual(drag_question["library"], "H5P.DragQuestionPapiJo 1.14")
+                self.assertEqual(advanced_blanks["library"], "H5P.AdvancedBlanksPapiJo 1.4")
+                self.assertEqual(true_false["library"], "H5P.TrueFalse 1.8")
+                self.assertEqual(dialog_cards["library"], "H5P.Dialogcards 1.9")
+
+                converted_dependency_versions = {
+                    dependency["machineName"]: (
+                        dependency["majorVersion"],
+                        dependency["minorVersion"],
+                    )
+                    for key in (
+                        "preloadedDependencies",
+                        "dynamicDependencies",
+                        "editorDependencies",
+                    )
+                    for dependency in converted_manifest[key]
+                }
+                for question in (mark_the_words, drag_text, drag_question, advanced_blanks):
+                    machine, version = question["library"].split(" ", 1)
+                    self.assertEqual(
+                        converted_dependency_versions[machine],
+                        tuple(int(part) for part in version.split(".")),
+                    )
 
 
 if __name__ == "__main__":
